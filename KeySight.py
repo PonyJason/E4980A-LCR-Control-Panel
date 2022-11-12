@@ -20,9 +20,10 @@ class KeySight:
     def keysight_return_freq(self):
         return self.pre_setting_frequency_str
 
-    def keysight_connect(self):
+    def keysight_connect(self, addr):
         # self.myInst = self.rm.open_resource('USB0::0x0957::0x0909::MY46205006::0::INSTR')  # 该指令用于设置连接
-        self.myInst = self.rm.open_resource('TCPIP0::192.168.31.212::inst0::INSTR')  # 设置tcpip连接
+        # self.myInst = self.rm.open_resource('TCPIP0::192.168.31.212::inst0::INSTR')  # 设置tcpip连接
+        self.myInst = self.rm.open_resource(addr)  # 设置tcpip连接
         self.myInst.write("*RST;*CLS")
         self.myInst.write("*IDN?")
         print(self.myInst.read())  # 显示仪器信息

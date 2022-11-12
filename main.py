@@ -3,11 +3,12 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import os
-import win32ui
+
 import sys
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox, \
-    QInputDialog
+    QFileDialog, QInputDialog
+
 import matplotlib.pyplot as plt
 import matplotlib
 import copy
@@ -123,10 +124,9 @@ class MainWindow(QWidget):
         self.trainDict = {}
         self.setWindowTitle('keysight 简易上位机')
 
-
         # 总布局设定结束，展示主窗口
 
-        #加载keysight类型
+        # 加载keysight类型
         self.ks = KeySight()
         self.zmag = []
         self.zang = []
@@ -138,19 +138,22 @@ class MainWindow(QWidget):
         self.show()
 
     def connect_task(self):
-        self.ks.keysight_connect()
+        addr, is_context_valid = QInputDialog.getText(self, "设备连接", "粘贴仪器VISA地址")
+        if not is_context_valid:
+            print(addr)
+            return
+        self.ks.keysight_connect(addr)
         self.ks.keysight_set_measurement()
-        # self.freqEvalStr = "["
-        # realfreq = copy.deepcopy(self.ks.keysight_return_freq())
-        # self.freqEvalStr.append(realfreq)
-        # self.freqEvalStr.append("]")
-        # self.freq_list = list(self.freqEvalStr)
+
         return None
 
     def new_file_task(self):  # 创建新文件
-        self.connect_task()
-        self.file_name = self.show_dialog()
 
+        currentDir = os.path.dirname(__file__)
+        self.file_name, is_context_valid = QFileDialog.getSaveFileName(self, "新建文件", currentDir, "csv(*.csv)")
+        print(self.file_name)
+        if not is_context_valid:
+            return
         with open(self.file_name, "w", encoding="utf-8") as f:
             f.write("density,1kHz_mag,2kHz_mag,5kHz_mag,7kHz_mag,10kHz_mag,20kHz_mag,50kHz_mag,70kHz_mag,"
                     "100kHz_mag,200kHz_mag,500kHz_mag,700kHz_mag,1MHz_mag,2MHz_mag,1kHz_ang,2kHz_ang,5kHz_ang,"
@@ -159,36 +162,42 @@ class MainWindow(QWidget):
             f.close()
         return None
 
-    def show_dialog(self):
-        sender = self.sender()
-        if sender == self.btn1:
-            text, ok = QInputDialog.getText(self, '新建文件', '请输入文件名：')
-            if ok:
-                return text
-        if sender == self.btn2:
-            text, ok = QInputDialog.getText(self, '新建记录', '请输入属性（浓度）：')
-            if ok:
-                return text
-        return None
+    # def show_dialog(self):
+    #     sender = self.sender()
+    #     if sender == self.btn0:
+    #         text, ok = QInputDialog.getText(self, '新建连接', '请输入设备的VISA地址')
+    #         if ok:
+    #             return text
+    #     elif sender == self.btn1:
+    #         text, ok = QInputDialog.getText(self, '新建文件', '请输入文件名：')
+    #         if ok:
+    #             return text
+    #     elif sender == self.btn2:
+    #         text, ok = QInputDialog.getText(self, '新建记录', '请输入属性（浓度）：')
+    #         if ok:
+    #             return text
+    #     return None
 
     def load_last_file_task(self):
-        self.connect_task()
+
         # 当前文件夹路径
-        dirpath = os.path.dirname(__file__)
-        dlg = win32ui.CreateFileDialog(True)  # True表示打开文件对话框
-        # 设置打开文件对话框中的初始显示目录
-        dlg.SetOFNInitialDir(dirpath)
-        dlg.DoModal()
-        # 等待获取用户选择的文件
-        self.file_name = dlg.GetPathName()  # 获取选择的文件名称
+        currentDir = os.path.dirname(__file__)
+        self.file_name, is_context_valid = QFileDialog.getOpenFileName(self, "加载文件", currentDir, "csv(*.csv)")
         # 如果没选择文件则filename是空的,即=""
-        print(self.file_name)
+        if not is_context_valid:
+            print(self.file_name)
+            self.file_name = ''
 
         return None
 
     def add_one_record_task(self):  # 增加一条阻抗测量记录 以细菌浓度作为备注
         # 测量前询问物体属性
-        density = self.show_dialog()
+
+        m_class, is_context_valid = QInputDialog.getText(self, "文本输入", "输入测量物体的种类或属性")
+        print(m_class)
+        if not is_context_valid:
+            print(m_class)
+            return
         # 首先进行一次测量
         self.ks.keysight_start_measurement()
         # 测量后得到数据zMag和zAng
@@ -203,7 +212,7 @@ class MainWindow(QWidget):
         print(self.zang)
         # 将数据存入文件内
         with open(self.file_name, "a") as f:
-            f.write(density)
+            f.write(m_class)
 
             for i in range(14):
                 f.write(",")
@@ -245,10 +254,9 @@ class MainWindow(QWidget):
         bodex = np.log10(bodex)  # bode图中 横坐标是10的幂
 
         magDB = np.array(self.zmag)
-        magDB = 20*np.log10(magDB)  # bode图中 模值的纵坐标以分贝为单位
+        magDB = 20 * np.log10(magDB)  # bode图中 模值的纵坐标以分贝为单位
 
         angDG = np.array(self.zang)
-
 
         ax = self.figure_mag.add_subplot(111)
         bx = self.figure_ang.add_subplot(111)
